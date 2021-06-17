@@ -784,63 +784,76 @@ void subst_list_fprintf(const subst_list_type * subst_list , FILE * stream) {
   }
 }
 
+static int find_substring(const char *arg_string, const char *split_char)
+{
+    char pattern[4] = {'"', '\'', '\0', '\0'};
+    int len = strcspn(arg_string, strcat(pattern, split_char));
 
-/** Will loose tagging .... */
-int subst_list_add_from_string( subst_list_type * subst_list , const char * arg_string, bool append) {
-  int     error_count = 0;
-  if (arg_string != NULL) {
-    char ** key_value_list;
-    int     num_arg, iarg;
+    if (strlen(arg_string) > len && (arg_string[len] == '"' || arg_string[len] == '\''))
+    {
+        // The string must be long enough to find a corresponding end delimiter.
+        if (strlen(arg_string + len + 1) == 0)
+            return -1;
 
-    util_split_string(arg_string , "," , &num_arg , &key_value_list);
-    for (iarg = 0; iarg < num_arg; iarg++) {
-      if (strchr(key_value_list[iarg] , '=') == NULL)
-        //util_abort("%s: could not find \'=\' in argument string:%s \n",__func__ , key_value_list[iarg]);
-        /*
-          Could not find '=' in the argument string, this argument will
-          be ignored, and the error_count will be increased by one.
-        */
-        error_count += 1;
-      else {
-        char * key , * value;
-        char * tmp     = key_value_list[iarg];
-        int arg_length , value_length;
-        while (isspace(*tmp))  /* Skipping initial space */
-          tmp++;
+        // Find the corresponding end delimiter.
+        const char *end = strchr(arg_string + len + 1, arg_string[len]);
 
-        arg_length = strcspn(tmp , " =");
-        key  = util_alloc_substring_copy(tmp , 0 , arg_length);
-        tmp += arg_length;
-        while ((*tmp == ' ') || (*tmp == '='))
-          tmp++;
+        // No corresponding end delimiter is an error.
+        if (end == NULL)
+            return -1;
 
-        value_length = strcspn(tmp , " ");
-        value = util_alloc_substring_copy( tmp , 0 , value_length);
+        len = end - arg_string;
+    }
 
-        /* Setting the argument */
+    return len;
+}
+
+void subst_list_add_from_string(subst_list_type *subst_list, const char *arg_string, bool append)
+{
+    char *tmp = NULL, *key = NULL, *value = NULL;
+
+    if (!arg_string)
+        return;
+
+    while (isspace(*arg_string))
+        ++arg_string;
+
+    while (strlen(arg_string))
+    {
+        // Find the next argument, value pair.
+        int arg_len = find_substring(arg_string, ",");
+        if (arg_len < 0)
+            util_abort("%s: error in the argument list: %s\n", __func__, arg_string);
+
+        // Parse the argument.
+        tmp = util_alloc_substring_copy(arg_string, 0, arg_len);
+        printf("** tmp **\n");
+        int key_len = find_substring(tmp, "=");
+        if (key_len < 0 || key_len == strlen(tmp))
+        {
+            if (tmp)
+                free(tmp);
+            util_abort("%s: error in argument: %s\n", __func__, tmp);
+        }
+        key = util_alloc_substring_copy(tmp, 0, key_len);
+        value = util_alloc_substring_copy(tmp, key_len + 1, strlen(tmp) - key_len);
+
         if (append)
-          subst_list_append_copy( subst_list , key , value , NULL);
+            subst_list_append_copy(subst_list, key, value, NULL);
         else
-          subst_list_prepend_copy( subst_list , key , value , NULL);
+            subst_list_prepend_copy(subst_list, key, value, NULL);
 
         free(key);
         free(value);
-        tmp += value_length;
+        free(tmp);
 
+        // Skip to the rest of the argument string.
+        arg_string += arg_len;
 
-        /* Accept only trailing space - any other character indicates a failed parsing. */
-        while (*tmp != '\0') {
-          if (!isspace(*tmp))
-            util_abort("%s: something wrong with:%s  - spaces are not allowed in key or value part.\n",__func__ , key_value_list[iarg]);
-          tmp++;
-        }
-      }
+        // Skip whitespace and comma's.
+        while (*arg_string == ',' || isspace(*arg_string))
+            ++arg_string;
     }
-    util_free_stringlist(key_value_list , num_arg);
-  }
-  return error_count;
 }
-
-
 
 /*****************************************************************/
