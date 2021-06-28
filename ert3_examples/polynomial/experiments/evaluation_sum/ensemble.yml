@@ -1,0 +1,21 @@
+size: 10
+
+input:
+  -
+    source: stochastic.coefficients
+    record: gauss_coefficients  
+  -
+    source: stochastic.uniform_coefficients
+    record: uniform_coefficients
+
+output:
+  -
+    record: gauss_polynomial_output
+  -
+    record: uniform_polynomial_output
+  -
+    record: sum_polynomial_output
+
+forward_model:
+  driver: local
+  stage: evaluate_sum_polynomials
