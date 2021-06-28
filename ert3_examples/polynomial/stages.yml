@@ -32,3 +32,38 @@
       location: output
 
   function: function_steps.functions:polynomial
+
+-
+  name: evaluate_sum_polynomials
+  input:
+    -
+      record: gauss_coefficients 
+      location: gauss_coefficients.json
+    -
+      record: uniform_coefficients 
+      location: uniform_coefficients.json
+  
+  output:
+    -
+      record: gauss_polynomial_output
+      location: gauss_output.json
+    -
+      record: uniform_polynomial_output
+      location: uniform_output.json
+    
+    -
+      record: sum_polynomial_output
+      location: sum_output.json
+  
+  transportable_commands:
+    -
+      name: poly
+      location: poly.py
+    -
+      name: sum_poly
+      location: sum_poly.py
+  
+  script:
+    - poly --coefficients gauss_coefficients.json --output gauss_output.json
+    - poly --coefficients uniform_coefficients.json --output uniform_output.json
+    - sum_poly --input gauss_output.json uniform_output.json --output sum_output.json
